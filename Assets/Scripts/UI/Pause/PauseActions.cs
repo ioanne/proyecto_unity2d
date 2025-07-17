@@ -10,7 +10,7 @@ public class PauseActions : MonoBehaviour
     [SerializeField] private Button restartButton;
     [SerializeField] private Button nextSceneButton;
 
-    private List<string> levels = new List<string> { "Level1", "Level2", "Level3" };
+    private List<string> levels = new List<string> { "Level1", "Level2" };
 
     void Start()
     {

@@ -1,16 +1,18 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using System.Collections.Generic;
+using System.Collections;
 
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
-    [SerializeField] private GameObject enemyHealthBar; // Prefab de la barra de salud del enemigo
+
+    [SerializeField] private GameObject enemyHealthBar;
     [SerializeField] private GameObject playerHealthBar;
     [SerializeField] private GameObject doorInteractionMessage;
 
-    private Enemy targetEnemy; // El enemigo objetivo actualmente seleccionado
+    private Enemy targetEnemy;
+    private Coroutine hideBarCoroutine;
 
     private void Awake()
     {
@@ -52,14 +54,32 @@ public class UIManager : MonoBehaviour
 
     public void ShowEnemyHealthBar(Enemy enemy)
     {
-        targetEnemy = enemy; // Asigna el enemigo objetivo
-        enemyHealthBar.SetActive(true); // Muestra la barra de salud
-        UpdateEnemyHealthBar(targetEnemy, targetEnemy.CurrentHealth, targetEnemy.MaxHealth); // Actualiza la barra de salud
+        if (enemyHealthBar == null)
+            return;
+
+        // Si ya hay una barra activa y es de otro enemigo, ocultar la anterior
+        if (targetEnemy != null && targetEnemy != enemy)
+        {
+            enemyHealthBar.SetActive(false);
+            targetEnemy = null;
+
+            if (hideBarCoroutine != null)
+                StopCoroutine(hideBarCoroutine);
+        }
+
+        targetEnemy = enemy;
+        enemyHealthBar.SetActive(true);
+        UpdateEnemyHealthBar(enemy, enemy.CurrentHealth, enemy.MaxHealth);
+
+        if (hideBarCoroutine != null)
+            StopCoroutine(hideBarCoroutine);
+
+        hideBarCoroutine = StartCoroutine(HideEnemyHealthBarAfterDelay(enemy, 5f));
     }
 
     public void UpdateEnemyHealthBar(Enemy enemy, int currentHealth, int maxHealth)
     {
-        if (targetEnemy == enemy && enemyHealthBar != null) // Asegúrate de que se actualice solo para el enemigo objetivo
+        if (enemy == targetEnemy && enemyHealthBar != null)
         {
             Slider enemyHealthSlider = enemyHealthBar.GetComponentInChildren<Slider>();
             TextMeshProUGUI enemyHealthText = enemyHealthBar.GetComponentInChildren<TextMeshProUGUI>();
@@ -72,13 +92,20 @@ public class UIManager : MonoBehaviour
 
     public void HideEnemyHealthBar(Enemy enemy)
     {
-        Debug.Log("Call to hide enemy health bar");
-        if (targetEnemy == enemy && enemyHealthBar != null) // Solo oculta si el enemigo coincide
+        if (targetEnemy == enemy && enemyHealthBar != null)
         {
-            Debug.Log("Hiding enemy health bar");
-            enemyHealthBar.SetActive(false); // Oculta la barra de salud
-            targetEnemy = null; // Reinicia el enemigo objetivo
+            enemyHealthBar.SetActive(false);
+            targetEnemy = null;
+
+            if (hideBarCoroutine != null)
+                StopCoroutine(hideBarCoroutine);
         }
+    }
+
+    private IEnumerator HideEnemyHealthBarAfterDelay(Enemy enemy, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        HideEnemyHealthBar(enemy);
     }
 
     public void UpdateHealthBar(int currentHealth, int maxHealth)
@@ -93,12 +120,11 @@ public class UIManager : MonoBehaviour
         }
     }
 
-
     public void ShowDoorInteractionMessage()
     {
         if (doorInteractionMessage != null)
         {
-            doorInteractionMessage.SetActive(true); // Muestra el mensaje
+            doorInteractionMessage.SetActive(true);
         }
     }
 
@@ -106,7 +132,7 @@ public class UIManager : MonoBehaviour
     {
         if (doorInteractionMessage != null)
         {
-            doorInteractionMessage.SetActive(false); // Oculta el mensaje
+            doorInteractionMessage.SetActive(false);
         }
     }
 }

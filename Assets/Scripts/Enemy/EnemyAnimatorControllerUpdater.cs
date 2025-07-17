@@ -8,7 +8,7 @@ public class EnemyAnimatorControllerUpdater : MonoBehaviour
     public ControlMode controlMode = ControlMode.AutoByMovement;
 
     [Header("Auto Follow Settings")]
-    public string targetTag = "Player";     // Nuevo: buscar por tag
+    public string targetTag = "Player";
     public float followRange = 5f;
     public float speed = 2f;
     public bool requireLineOfSight = false;
@@ -19,6 +19,7 @@ public class EnemyAnimatorControllerUpdater : MonoBehaviour
     private Animator animator;
     private Rigidbody2D rb;
     private Transform target;
+    private bool isAttacking = false;
 
     void Awake()
     {
@@ -49,6 +50,13 @@ public class EnemyAnimatorControllerUpdater : MonoBehaviour
         }
         else if (controlMode == ControlMode.AutoByMovement)
         {
+            if (isAttacking)
+            {
+                rb.velocity = Vector2.zero;
+                animator.SetBool("isMoving", false);
+                return;
+            }
+
             if (target != null && IsTargetVisible())
             {
                 Vector2 direction = (target.position - transform.position).normalized;
@@ -73,6 +81,11 @@ public class EnemyAnimatorControllerUpdater : MonoBehaviour
         }
     }
 
+    public void SetAttackingState(bool attacking)
+    {
+        isAttacking = attacking;
+    }
+
     private bool IsTargetVisible()
     {
         if (target == null) return false;
@@ -90,5 +103,9 @@ public class EnemyAnimatorControllerUpdater : MonoBehaviour
             return true;
         }
         return false;
+    }
+    public bool IsTargetInRange()
+    {
+        return IsTargetVisible();
     }
 }

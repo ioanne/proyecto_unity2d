@@ -2,15 +2,19 @@ using UnityEngine;
 
 public class PlayerSkillController : MonoBehaviour
 {
-    public GameObject skillPrefab;
-    public float skillSpeed = 5f;
-    public float spawnOffset = 0.5f;
+    [SerializeField] private GameObject skillPrefab;
+    [SerializeField] private float skillSpeed = 5f;
+    [SerializeField] private float spawnOffset = 0.5f;
+    [SerializeField] private AudioClip attackSound;
+    [SerializeField] private AudioClip hitSound;
 
     private PlayerController playerController;
+    private AudioSource audioSource;
 
     void Awake()
     {
         playerController = GetComponent<PlayerController>();
+        audioSource = GetComponent<AudioSource>();
     }
 
     void Update()
@@ -20,7 +24,7 @@ public class PlayerSkillController : MonoBehaviour
             Vector2 direction = playerController.GetLastDirection();
 
             if (direction == Vector2.zero)
-                direction = Vector2.down; // por defecto
+                direction = Vector2.down; // dirección por defecto
 
             FireSkill(direction);
         }
@@ -28,15 +32,30 @@ public class PlayerSkillController : MonoBehaviour
 
     void FireSkill(Vector2 direction)
     {
+        // Sonido de ataque
+        if (attackSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(attackSound);
+        }
+
         Vector2 spawnPosition = (Vector2)transform.position + direction.normalized * spawnOffset;
 
         GameObject skill = Instantiate(skillPrefab, spawnPosition, Quaternion.identity);
         SkillProjectile projectile = skill.GetComponent<SkillProjectile>();
 
-        projectile.SetDirection(direction);
-        projectile.speed = skillSpeed;
+        if (projectile != null)
+        {
+            projectile.SetDirection(direction);
+            projectile.speed = skillSpeed;
+            projectile.SetTargetTag("Enemy");
+            projectile.SetInstigator(gameObject);
 
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-        skill.transform.rotation = Quaternion.Euler(0, 0, angle);
+            if (hitSound != null)
+                projectile.SetHitSound(hitSound);
+        }
+        else
+        {
+            Debug.LogWarning("El prefab no tiene SkillProjectile.");
+        }
     }
 }

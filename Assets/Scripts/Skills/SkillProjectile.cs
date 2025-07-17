@@ -1,81 +1,123 @@
 using UnityEngine;
-using UnityEngine.Tilemaps;
 
 [RequireComponent(typeof(Rigidbody2D))]
-[RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(AudioSource))]
 public class SkillProjectile : MonoBehaviour
 {
+    [Header("Configuración general")]
     public float speed = 10f;
-    public float lifetime = 3f; // Tiempo de vida si no choca con nada
-    public string enemyTag = "Enemy";
-    public string decorationTag = "Decoration"; // Añadido para la decoración
+    public float lifetime = 30f;
+
+    [Header("Colisiones")]
+    [SerializeField] private string decorationTag = "Decoration"; // objetos a ignorar
+
+    private string targetTag = "Enemy";         // objetivo válido para explotar
+    private GameObject instigator = null;       // quien disparó (para no autogolpearse)
 
     private Rigidbody2D rb;
     private Animator animator;
+    private AudioSource audioSource;
+
+    private AudioClip hitSound;
     private bool hasExploded = false;
 
-    void Awake()
+    private void Awake()
     {
-        // Obtenemos los componentes en Awake para asegurar que existan
         rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>();
-        
-        // El proyectil se destruirá después de 'lifetime' segundos si no ha chocado
+        animator = GetComponent<Animator>(); // opcional
+        audioSource = GetComponent<AudioSource>();
         Destroy(gameObject, lifetime);
     }
 
-    // Esta función ahora establece la dirección Y aplica la velocidad.
-    // Debe ser llamada justo después de instanciar el proyectil.
     public void SetDirection(Vector2 direction)
     {
-        // Normaliza la dirección para tener velocidad constante
         direction.Normalize();
-        
-        // Aplica la velocidad
         rb.velocity = direction * speed;
 
-        // Opcional: Rotar el sprite para que mire en la dirección del movimiento
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg - 90f;
-        transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        // Rotar visualmente
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0f, 0f, angle);
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    public void SetHitSound(AudioClip sound)
     {
-        // Si ya hemos explotado, no hacemos nada más.
+        hitSound = sound;
+    }
+
+    public void SetTargetTag(string tag)
+    {
+        targetTag = tag;
+    }
+
+    public void SetInstigator(GameObject whoFired)
+    {
+        instigator = whoFired;
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
         if (hasExploded) return;
 
-        // Comprobamos si el objeto con el que chocamos tiene una de las etiquetas deseadas
-        // O si es un Tilemap con un collider.
-        bool hitTarget = other.CompareTag(enemyTag) || 
-                         other.CompareTag(decorationTag) ||
-                         other.GetComponent<TilemapCollider2D>() != null;
-
-        if (hitTarget)
+        if (collision.CompareTag(decorationTag))
         {
-            hasExploded = true;
+            Explode();
+            return;
+        }
 
-            // Cancelamos la autodestrucción por tiempo de vida, ya que ahora explotará.
-            CancelInvoke(); 
-            Destroy(gameObject, 2f); // Failsafe por si la animación no destruye el objeto
+        if (instigator != null && collision.gameObject == instigator)
+            return;
 
-            // Detenemos el movimiento del proyectil
-            rb.velocity = Vector2.zero;
-            rb.isKinematic = true; // Evita que siga siendo afectado por físicas
+        if (collision.CompareTag(targetTag))
+        {
+            int damage = 10;
 
-            // Desactivamos el collider para no causar múltiples colisiones
-            GetComponent<Collider2D>().enabled = false;
+            // Si el instigador tiene stats, los usamos
+            // CharacterStats stats = instigator?.GetComponent<Player>()?.GetStats()
+            //                         ?? instigator?.GetComponent<Enemy>()?.GetStats();
 
-            // ¡La clave! Enviamos el trigger al Animator.
-            Debug.Log($"💥 Impacto con {other.name}! Enviando trigger 'Explode'.");
-            animator.SetTrigger("Explode");
+            // if (stats != null)
+            //     damage = stats.Strength;
+            damage = 10;
+
+            // Aplicar daño al objetivo
+            if (targetTag == "Enemy")
+            {
+                Enemy enemy = collision.GetComponent<Enemy>();
+                if (enemy != null)
+                    enemy.TakeDamage(damage);
+            }
+            else if (targetTag == "Player")
+            {
+                Player player = collision.GetComponent<Player>();
+                if (player != null)
+                    player.TakeDamage(damage);
+            }
+
+            Explode();
         }
     }
 
-    // Este método debe ser llamado por un "Animation Event" al final
-    // del clip de animación "Explosion".
-    public void OnExplosionFinished()
+    private void Explode()
     {
-        // Destruye el objeto del juego una vez la animación ha terminado.
+        hasExploded = true;
+
+        if (hitSound != null && audioSource != null)
+            audioSource.PlayOneShot(hitSound);
+
+        if (animator != null)
+        {
+            animator.SetTrigger("Explode");
+            rb.velocity = Vector2.zero;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    // Llamado desde animación si existe
+    public void DestroySelf()
+    {
         Destroy(gameObject);
     }
 }

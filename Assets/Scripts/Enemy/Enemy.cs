@@ -11,8 +11,8 @@ public class Enemy : MonoBehaviour
     [SerializeField] private float attackPower = 10f;
     [SerializeField] private float attackCooldown = 2f;
     [SerializeField] private float attackSpeed = 2f;
-    [SerializeField] private float regenerationInterval = 4f; // Intervalo de regeneración
-    [SerializeField] private int regenerationAmount = 1; // Cantidad de vida que se regenera
+    [SerializeField] private float regenerationInterval = 4f;
+    [SerializeField] private int regenerationAmount = 1;
     [SerializeField] private AudioClip DeadSFX;
 
     public int CurrentHealth => healthSystem.CurrentHealth;
@@ -25,7 +25,6 @@ public class Enemy : MonoBehaviour
     private void Awake()
     {
         healthSystem = new HealthSystem(maxHp, this, regenerationInterval, regenerationAmount);
-
         healthSystem.OnHealthChanged += UpdateHealthUI;
         healthSystem.OnDeath += Die;
     }
@@ -35,56 +34,30 @@ public class Enemy : MonoBehaviour
         int finalDamage = Mathf.Max(damage - defense, 0);
         healthSystem.TakeDamage(finalDamage);
         Debug.Log("Enemy Takes Damage: " + finalDamage);
+
+        UIManager.Instance?.ShowEnemyHealthBar(this);
     }
 
-    public bool IsDead()
-    {
-        return healthSystem.CurrentHealth <= 0;
-    }
+    public bool IsDead() => healthSystem.CurrentHealth <= 0;
 
     private void Die()
     {
-        AudioManager.Instance.Playsound(DeadSFX);
-        Debug.Log("Enemy Die");
+        // AudioManager.Instance.Playsound(DeadSFX);
         OnEnemyDeath?.Invoke();
-
-        GetComponent<Animator>().SetBool("IsDeath", true);
+        UIManager.Instance?.HideEnemyHealthBar(this);
 
         foreach (Collider col in GetComponentsInChildren<Collider>())
-        {
             col.enabled = false;
-        }
 
-        Destroy(gameObject, 2f);
+        Destroy(gameObject, 0f);
     }
 
     private void UpdateHealthUI(int currentHealth, int maxHealth)
     {
-        // Verificar si UIManager está disponible antes de actualizar la barra de vida
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.UpdateEnemyHealthBar(this, currentHealth, maxHealth);
-        }
-        else
-        {
-            Debug.LogWarning("UIManager.Instance is null. Enemy health UI could not be updated.");
-        }
-
-        // Debug.Log($"Enemy Health updated: {currentHealth}/{maxHealth}");
+        UIManager.Instance?.UpdateEnemyHealthBar(this, currentHealth, maxHealth);
     }
 
-    public float GetAttackPower()
-    {
-        return attackPower;
-    }
-
-    public float GetAttackCooldown()
-    {
-        return attackCooldown;
-    }
-
-    public float GetAttackSpeed()
-    {
-        return attackSpeed;
-    }
+    public float GetAttackPower() => attackPower;
+    public float GetAttackCooldown() => attackCooldown;
+    public float GetAttackSpeed() => attackSpeed;
 }
